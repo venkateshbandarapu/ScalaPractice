@@ -58,7 +58,7 @@ object Test{
 
       println("length:"+validJoinDates.length)
       if (svcDates.length == 1)
-        validJoinDates:+ joinDT
+        validJoinDates=validJoinDates:+ joinDT
       else {
         var recentTS = if (i == 0) joinDT
         else  validJoinDates.last
