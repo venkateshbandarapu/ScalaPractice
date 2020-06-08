@@ -10,6 +10,8 @@ import org.apache.spark.sql.types.{DataTypes, StructField, StructType, Timestamp
 
 object Test{
 
+  var accumList=new ListAccum()
+
   def main(args: Array[String]): Unit = {
 
     val getEmpSchema=StructType(Array(StructField("emp_id",DataTypes.IntegerType),
@@ -37,6 +39,9 @@ object Test{
       .groupBy("emp_id")
       .agg(functions.collect_list(empData.col("join_date")).as("list_join_dates"))
 
+
+    spark.sparkContext.register(accumList);
+
    val validgroupedData= groupedData
      .withColumn("valid_join_dates", getValidSvcDatesUDF(groupedData.col("list_join_dates")))
 
@@ -46,22 +51,26 @@ object Test{
     empDataWithSvcDt.printSchema()
     empDataWithSvcDt.show(false)
 
+
+
   }
 
   val getValidSvcDatesUDF=udf(getValidSvcDates)
 
   def getValidSvcDates() = (svcDates:Seq[Timestamp])=>{
 
-    var validJoinDates:List[Timestamp]=List.empty
+    accumList.reset()
+
+  //  var validJoinDates:List[Timestamp]=List.empty
     for (i <- svcDates.indices) {
       val joinDT = svcDates(i)
 
-      println("length:"+validJoinDates.length)
+     // println("length:"+accumvar.)
       if (svcDates.length == 1)
-        validJoinDates=validJoinDates:+ joinDT
+        accumList.add(joinDT)
       else {
         var recentTS = if (i == 0) joinDT
-        else  validJoinDates.last
+        else  accumList.lastValue()
 
         val cal = Calendar.getInstance
         cal.setTime(recentTS)
@@ -69,15 +78,15 @@ object Test{
         val time_30 = new Timestamp(cal.getTime.getTime)
         if (recentTS.before(joinDT) && time_30.after(joinDT)) {
           println("inside if")
-          validJoinDates=validJoinDates:+ recentTS
+          accumList.add(recentTS)
         }
         else {
           println("inside else")
-          validJoinDates=validJoinDates:+joinDT
+          accumList.add(joinDT)
         }
       }
     }
-    validJoinDates
+    accumList.getList();
 
   }
 
